@@ -5,7 +5,7 @@ tput reset || clear
 
 # Unset Every Variables That We Are Gonna Use Later
 unset PROJECT_DIR INPUTDIR UTILSDIR OUTDIR TMPDIR FILEPATH FILE EXTENSION UNZIP_DIR ArcPath \
-	GITHUB_TOKEN GIT_ORG TG_TOKEN CHAT_ID
+	GITLAB_TOKEN GIT_ORG TG_TOKEN CHAT_ID LAB_CORE_TOKEN LAB_CORE_HOST
 
 # Resize Terminal Window To Atleast 30x90 For Better View
 printf "\033[8;30;90t" || true
@@ -854,18 +854,17 @@ sort -nr < "${TMPDIR}"/sized_files.txt > "${OUTDIR}"/all_files.txt
 
 rm -rf "${TMPDIR}" 2>/dev/null
 
-if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
-	GITHUB_TOKEN=$(< "${PROJECT_DIR}"/.github_token)	# Write Your Github Token In a Text File
-	[[ -z "$(git config --get user.email)" ]] && git config user.email "DroidDumps@github.com"
-	[[ -z "$(git config --get user.name)" ]] && git config user.name "DroidDumps"
-	if [[ -s "${PROJECT_DIR}"/.github_orgname ]]; then
-		GIT_ORG=$(< "${PROJECT_DIR}"/.github_orgname)	# Set Your Github Organization Name
-	else
-		GIT_USER="$(git config --get user.name)"
-		GIT_ORG="${GIT_USER}"				# Otherwise, Your Username will be used
-	fi
+
+if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
+	GITLAB_TOKEN=$(< "${PROJECT_DIR}"/.gitlab_token)	# Write Your GitLab Token In a Text File
+	export LAB_CORE_TOKEN="$GITLAB_TOKEN"
+	if [[ -s "${PROJECT_DIR}"/.gitlab_instance ]]; then GITLAB_INSTANCE=$(< "${PROJECT_DIR}"/.gitlab_instance) && export LAB_CORE_HOST="https://$GITLAB_INSTANCE" ; else GITLAB_INSTANCE=gitlab.com && export LAB_CORE_HOST=https://"$GITLAB_INSTANCE" ; fi  #will use gitlab.com as default instance
+	git config --global user.email "DroidDumps@github.com"
+	git config --global user.name "DroidDumps"
+	if [[ -s "${PROJECT_DIR}"/.gitlab_username ]]; then GIT_USER=$(< "${PROJECT_DIR}"/.gitlab_username) ; fi
+	if [[ -s "${PROJECT_DIR}"/.gitlab_orgname ]]; then GIT_ORG=$(< "${PROJECT_DIR}"/.gitlab_orgname) ; fi
 	# Check if already dumped or not
-	curl -sf "https://raw.githubusercontent.com/${GIT_ORG}/${repo}/${branch}/all_files.txt" 2>/dev/null && { printf "Firmware already dumped!\nGo to https://github.com/%s/%s/tree/%s\n" "${GIT_ORG}" "${repo}" "${branch}" && exit 1; }
+	curl -sf "https://"$GITLAB_INSTANCE"/${GIT_ORG}/${REPO}/-/raw/${branch}/all_files.txt" | grep "all_files.txt" && { printf "Firmware already dumped!\nGo to https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}/-/tree/${branch}\n" && exit 1; }  #add grep to fix gitlab login error
 	# Remove The Journal File Inside System/Vendor
 	find . -mindepth 2 -type d -name "\[SYS\]" -exec rm -rf {} \; 2>/dev/null
 	# Files larger than 62MB will be split into 47MB parts as *.aa, *.ab, etc.
@@ -884,35 +883,34 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	rm -rf "${TMPDIR}" 2>/dev/null
 	printf "\nFinal Repository Should Look Like...\n" && ls -lAog
 	printf "\n\nStarting Git Init...\n"
-	git init		# Insure Your Github Authorization Before Running This Script
+	git init		# Insure Your GitLab Authorization Before Running This Script
 	git config --global http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
 	git checkout -b "${branch}"
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
 	[[ ! -s .gitignore ]] && rm .gitignore
 	git add --all
 	if [[ "${GIT_ORG}" == "${GIT_USER}" ]]; then
-		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{"name": "'"${repo}"'", "description": "'"${description}"'"}' "https://api.github.com/user/repos" >/dev/null 2>&1
+		lab project create ${repo} -d "${description}" --public
 	else
-		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{ "name": "'"${repo}"'", "description": "'"${description}"'"}' "https://api.github.com/orgs/${GIT_ORG}/repos" >/dev/null 2>&1
+		lab project create -g "${GIT_ORG}" "${repo}" -d "${description}" --public
 	fi
-	curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.mercy-preview+json" -d '{ "names": ["'"${platform}"'","'"${manufacturer}"'","'"${top_codename}"'","firmware","dump"]}' "https://api.github.com/repos/${GIT_ORG}/${repo}/topics" 	# Update Repository Topics
-	git remote add origin https://github.com/${GIT_ORG}/${repo}.git
+	git remote add origin https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git
 	git commit -asm "Add ${description}"
-	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"; } || (
+	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GIT_USER}:${GITLAB_TOKEN}@"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git "${branch}"; } || (
 		git update-ref -d HEAD
 		git reset system/ vendor/
 		git checkout -b "${branch}"
 		git commit -asm "Add extras for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git "${branch}"
 		git add vendor/
 		git commit -asm "Add vendor for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git "${branch}"
 		git add system/system/app/ system/system/priv-app/ || git add system/app/ system/priv-app/
 		git commit -asm "Add apps for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git "${branch}"
 		git add system/
 		git commit -asm "Add system for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git "${branch}"
 	)
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
@@ -928,7 +926,8 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 			printf "\n<b>Device: %s</b>" "${codename}"
 			printf "\n<b>Version:</b> %s" "${release}"
 			printf "\n<b>Fingerprint:</b> %s" "${fingerprint}"
-			printf "\n<a href=\"https://github.com/%s/%s/tree/%s/\">Github Tree</a>" "${GIT_ORG}" "${repo}" "${branch}"
+			printf "\n<a href=\"https://%s/%s/%s/-/tree/%s/\">GitLab Tree</a>" "${GITLAB_INSTANCE}" "${GIT_ORG}" "${repo}" "${branch}"
+			
 		} >> "${OUTDIR}"/tg.html
 		TEXT=$(< "${OUTDIR}"/tg.html)
 		rm -rf "${OUTDIR}"/tg.html

@@ -32,3 +32,7 @@ if [ $? -eq 0 ]; then
 	rm -f get-pip.py
 	pip3 install future requests humanize clint backports.lzma lz4 zstandard protobuf pycryptodome docopt
 fi
+if ! command -v lab &> /dev/null
+then
+    curl -s https://raw.githubusercontent.com/zaquestion/lab/master/install.sh | sudo bash  #install lab, a gitlab command-line client
+fi
