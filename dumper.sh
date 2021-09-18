@@ -856,8 +856,8 @@ rm -rf "${TMPDIR}" 2>/dev/null
 
 if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	GITHUB_TOKEN=$(< "${PROJECT_DIR}"/.github_token)	# Write Your Github Token In a Text File
-	[[ -z "$(git config --get user.email)" ]] && git config user.email "DroidDumps@github.com"
-	[[ -z "$(git config --get user.name)" ]] && git config user.name "DroidDumps"
+	[[ -z "$(git config --get user.email)" ]] && git config user.email "evanferrao@gmail.com"
+	[[ -z "$(git config --get user.name)" ]] && git config user.name "Box In A Box"
 	if [[ -s "${PROJECT_DIR}"/.github_orgname ]]; then
 		GIT_ORG=$(< "${PROJECT_DIR}"/.github_orgname)	# Set Your Github Organization Name
 	else
@@ -891,9 +891,9 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	[[ ! -s .gitignore ]] && rm .gitignore
 	git add --all
 	if [[ "${GIT_ORG}" == "${GIT_USER}" ]]; then
-		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{"name": "'"${repo}"'", "description": "'"${description}"'"}' "https://api.github.com/user/repos" >/dev/null 2>&1
+		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{"name": "'"${repo}"'", "description": "'"${description}"'", "private":true}' "https://api.github.com/user/repos" >/dev/null 2>&1
 	else
-		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{ "name": "'"${repo}"'", "description": "'"${description}"'"}' "https://api.github.com/orgs/${GIT_ORG}/repos" >/dev/null 2>&1
+		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{ "name": "'"${repo}"'", "description": "'"${description}"'", "private":true}' "https://api.github.com/orgs/${GIT_ORG}/repos" >/dev/null 2>&1
 	fi
 	curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.mercy-preview+json" -d '{ "names": ["'"${platform}"'","'"${manufacturer}"'","'"${top_codename}"'","firmware","dump"]}' "https://api.github.com/repos/${GIT_ORG}/${repo}/topics" 	# Update Repository Topics
 	git remote add origin https://github.com/${GIT_ORG}/${repo}.git
@@ -920,13 +920,14 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 		if [[ -s "${PROJECT_DIR}"/.tg_chat ]]; then		# TG Channel ID
 			CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
 		else
-			CHAT_ID="@phoenix_droid_dumps"
+			CHAT_ID="@boxdumps"
 		fi
 		printf "Sending telegram notification...\n"
 		printf "<b>Brand: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html
 		{
 			printf "\n<b>Device: %s</b>" "${codename}"
 			printf "\n<b>Version:</b> %s" "${release}"
+			printf "\n<b>Dump Type: Private: Contact Group Owner If You Need Access To Dump</b>"
 			printf "\n<b>Fingerprint:</b> %s" "${fingerprint}"
 			printf "\n<a href=\"https://github.com/%s/%s/tree/%s/\">Github Tree</a>" "${GIT_ORG}" "${repo}" "${branch}"
 		} >> "${OUTDIR}"/tg.html
