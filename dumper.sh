@@ -89,21 +89,25 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 		git -C "${UTILSDIR}"/"${tool_slug#*/}" pull
 	fi
 done
-if [[ -s "${PROJECT_DIR}"/.tg_token ]] && [[ -s "${PROJECT_DIR}"/.tg_chat_id ]]
-then
-    export TELEGRAM_LIVE=true && TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) && TELEGRAM_CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat_id) && export TG_TOKEN=$TG_TOKEN && export TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
-else
-    export TELEGRAM_LIVE=false
-fi  #Additional Telegram Live Updates Feature
+#if [[ -s "${PROJECT_DIR}"/.tg_token ]] && [[ -s "${PROJECT_DIR}"/.tg_chat_id ]]
+#then
+export TELEGRAM_LIVE=true 
+TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) 
+CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat) 
+#export TG_TOKEN=$TG_TOKEN 
+#export CHAT_ID=$CHAT_ID
+#else
+    #export TELEGRAM_LIVE=false
+#fi  #Additional Telegram Live Updates Feature
 
 #Send Dump Start Notification and fetch message id, to be used for later live editing
-if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Type: application/json' -d "{\"chat_id\": \"$(< "${PROJECT_DIR}"/.tg_chat_id)\", \"text\": \"Starting Dump...\", \"disable_notification\": true}" https://api.telegram.org/bot$(< "${PROJECT_DIR}"/.tg_token)/sendMessage | grep -oP "(\"message_id\":)[0-9]+" | cut -d ":" -f 2) ; fi
+if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Type: application/json' -d "{\"chat_id\": \"$CHAT_ID\", \"text\": \"Starting Dump...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/sendMessage | grep -oP "(\"message_id\":)[0-9]+" | cut -d ":" -f 2) ; fi
 
 # Always Use update_metadata_pb2.py from Android's update_engine Git Repository
 curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
 
 live_telegram_update() {
-	if [ "$TELEGRAM_LIVE" == true ] ; then curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$(< "${PROJECT_DIR}"/.tg_chat_id)\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$(< "${PROJECT_DIR}"/.tg_token)/editMessageText ; fi
+	if [ "$TELEGRAM_LIVE" == true ] ; then curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$CHAT_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText ; fi
 }
 ## See README.md File For Program Credits
 # Set Utility Program Alias
@@ -1081,7 +1085,7 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		TEXT=$(< "${OUTDIR}"/tg.html)
 		rm -rf "${OUTDIR}"/tg.html
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
-		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text=${TEXT}&chat_id=${TELEGRAM_CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n" # Send Edited Message To The Telegram Group In Which /dump Command Is Initiated
+		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n" # Send Edited Message To The Telegram Group In Which /dump Command Is Initiated
 
 	fi
 else
