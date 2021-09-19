@@ -89,10 +89,22 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 		git -C "${UTILSDIR}"/"${tool_slug#*/}" pull
 	fi
 done
+if [[ -s "${PROJECT_DIR}"/.tg_token ]] && [[ -s "${PROJECT_DIR}"/.tg_chat_id ]]
+then
+    export TELEGRAM_LIVE=true && TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) && TELEGRAM_CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat_id) && export TG_TOKEN=$TG_TOKEN && export TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
+else
+    export TELEGRAM_LIVE=false
+fi  #Additional Telegram Live Updates Feature
+
+#Send Dump Start Notification and fetch message id, to be used for later live editing
+if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Type: application/json' -d "{\"chat_id\": \"$(< "${PROJECT_DIR}"/.tg_chat_id)\", \"text\": \"Starting Dump...\", \"disable_notification\": true}" https://api.telegram.org/bot$(< "${PROJECT_DIR}"/.tg_token)/sendMessage | grep -oP "(\"message_id\":)[0-9]+" | cut -d ":" -f 2) ; fi
 
 # Always Use update_metadata_pb2.py from Android's update_engine Git Repository
 curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
 
+live_telegram_update() {
+	if [ "$TELEGRAM_LIVE" == true ] ; then curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$(< "${PROJECT_DIR}"/.tg_chat_id)\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$(< "${PROJECT_DIR}"/.tg_token)/editMessageText ; fi
+}
 ## See README.md File For Program Credits
 # Set Utility Program Alias
 SDAT2IMG="${UTILSDIR}"/sdat2img.py
@@ -130,10 +142,14 @@ if echo "${1}" | grep -q "${PROJECT_DIR}/input" && [[ $(find "${INPUTDIR}" -maxd
 	FILEPATH=$(printf "%s\n" "$1")		# Relative Path To Script
 	FILEPATH=$(realpath "${FILEPATH}")	# Absolute Path
 	printf "Copying Everything Into %s For Further Operations." "${TMPDIR}"
+	MESSAGE="Copying Everything Into "${TMPDIR}" For Further Operations." 
+	live_telegram_update
 	cp -a "${FILEPATH}"/* "${TMPDIR}"/
 	unset FILEPATH
 elif echo "${1}" | grep -q "${PROJECT_DIR}/input/" && [[ $(find "${INPUTDIR}" -maxdepth 1 -type f -size +300M -print | wc -l) -eq 1 ]]; then
 	printf "Input Directory Exists And Contains File\n"
+	MESSAGE="Input Directory Exists And Contains File"
+	live_telegram_update
 	cd "${INPUTDIR}"/ || exit
 	# Input File Variables
 	FILEPATH=$(find "$(pwd)" -maxdepth 1 -type f -size +300M 2>/dev/null)	# INPUTDIR's FILEPATH is Always File
@@ -185,8 +201,12 @@ else
 	fi
 	if [[ -d "${FILEPATH}" || "${EXTENSION}" == "" ]]; then
 		printf "Directory Detected.\n"
+		MESSAGE="Directory Detected"
+		live_telegram_update
 		if find "${FILEPATH}" -maxdepth 1 -type f | grep -v "compatibility.zip" | grep -q ".*.tar$\|.*.zip\|.*.rar\|.*.7z"; then
 			printf "Supplied Folder Has Compressed Archive That Needs To Re-Load\n"
+			MESSAGE="Supplied Folder Has Compressed Archive That Needs To Re-Load"
+			live_telegram_update
 			# Set From Download Directory
 			ArcPath=$(find "${INPUTDIR}"/ -maxdepth 1 -type f \( -name "*.tar" -o -name "*.zip" -o -name "*.rar" -o -name "*.7z" \) -print | grep -v "compatibility.zip")
 			# If Empty, Set From Original Local Folder
@@ -197,14 +217,21 @@ else
 				( bash "${0}" "${ArcPath}" ) || exit 1
 				exit
 			elif echo "${ArcPath}" | grep -q " "; then
-				printf "More Than One Archive File Is Available In %s Folder.\nPlease Use Direct Archive Path Along With This Toolkit\n" "${FILEPATH}" && exit 1
+				printf "More Than One Archive File Is Available In %s Folder.\nPlease Use Direct Archive Path Along With This Toolkit\n" "${FILEPATH}"
+				MESSAGE="More Than One Archive File Is Available In "${FILEPATH}" Folder.\nPlease Use Direct Archive Path Along With This Toolkit"
+				live_telegram_update
+				exit 1
 			fi
 		elif find "${FILEPATH}" -maxdepth 1 -type f | grep ".*system.ext4.tar.*\|.*chunk\|system\/build.prop\|system.new.dat\|system_new.img\|system.img\|system-sign.img\|system.bin\|payload.bin\|.*rawprogram*\|system.sin\|.*system_.*\.sin\|system-p\|super\|UPDATE.APP\|.*.pac\|.*.nb0" | grep -q -v ".*chunk.*\.so$"; then
 			printf "Copying Everything Into %s For Further Operations." "${TMPDIR}"
+			MESSAGE="Copying Everything Into "${TMPDIR}" For Further Operations."
+			live_telegram_update
 			cp -a "${FILEPATH}"/* "${TMPDIR}"/
 			unset FILEPATH
 		else
 			printf "\e[31m BRUH: This type of firmware is not supported.\e[0m\n"
+			MESSAGE="BRUH: This type of firmware is not supported."
+			live_telegram_update
 			cd "${PROJECT_DIR}"/ || exit
 			rm -rf "${TMPDIR}" "${OUTDIR}"
 			exit 1
@@ -217,6 +244,8 @@ cd "${PROJECT_DIR}"/ || exit
 function superimage_extract() {
 	for partition in ${PARTITIONS}; do
 		printf "Extracting %s from super image\n" "${partition}"
+		MESSAGE="Extracting "${partition}" from super image"
+		live_telegram_update
 		( "${LPUNPACK}" --partition="${partition}"_a super.img.raw || "${LPUNPACK}" --partition="${partition}" super.img.raw ) 2>/dev/null
 		[[ -f "${partition}"_a.img ]] && mv "${partition}"_a.img "${partition}".img
 	done
@@ -224,14 +253,20 @@ function superimage_extract() {
 }
 
 printf "Extracting firmware on: %s\n" "${OUTDIR}"
+MESSAGE="Extracting firmware on: "${OUTDIR}""
+live_telegram_update
 cd "${TMPDIR}"/ || exit
 
 # Oppo .ozip Check
 if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] || [[ "${EXTENSION}" == "ozip" ]]; then
 	printf "Oppo/Realme ozip Detected.\n"
+	MESSAGE="Oppo/Realme ozip Detected."
+	live_telegram_update
 	# Either Move Downloaded/Re-Loaded File Or Copy Local File
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ozip And Making A Zip...\n"
+	MESSAGE="Decrypting ozip And Making A Zip"
+	live_telegram_update
 	python3 "${OZIPDECRYPT}" "${TMPDIR}"/"${FILE}"
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	if [[ -f "${FILE%.*}".zip ]]; then
@@ -241,6 +276,8 @@ if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] |
 	fi
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Content.\n"
+	MESSAGE="Re-Loading The Decrypted Content"
+	live_telegram_update
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/" 2>/dev/null || bash "${0}" "${INPUTDIR}"/"${FILE%.*}".zip ) || exit 1
 	exit
@@ -248,26 +285,36 @@ fi
 # Oneplus .ops Check
 if 7z l -ba "${FILEPATH}" | grep -q ".*.ops" 2>/dev/null; then
 	printf "Oppo/Oneplus ops Firmware Detected Extracting...\n"
+	MESSAGE="Oppo/Oneplus ops Firmware Detected Extracting"
+	live_telegram_update
 	foundops=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ops")
 	7z e -y -- "${FILEPATH}" "${foundops}" */"${foundops}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	mv "$(echo "${foundops}" | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
 	sleep 1s
 	printf "Reloading the extracted OPS\n"
+	MESSAGE="Reloading the extracted OPS"
+	live_telegram_update
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/${foundops}" 2>/dev/null) || exit 1
 	exit
 fi
 if [[ "${EXTENSION}" == "ops" ]]; then
 	printf "Oppo/Oneplus ops Detected.\n"
+	MESSAGE="Oppo/Oneplus ops Detected"
+	live_telegram_update
 	# Either Move Downloaded/Re-Loaded File Or Copy Local File
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ops & extracing...\n"
+	MESSAGE="Decrypting ops & extracing"
+	live_telegram_update
 	python3 "${OPSDECRYPT}" decrypt "${TMPDIR}"/"${FILE}"
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	mv "${TMPDIR}"/extract/* "${INPUTDIR}"/
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Content.\n"
+	MESSAGE="Re-Loading The Decrypted Content"
+	live_telegram_update
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/" 2>/dev/null || bash "${0}" "${INPUTDIR}"/"${FILE%.*}".zip ) || exit 1
 	exit
@@ -275,26 +322,37 @@ fi
 # Oppo .ofp Check
 if 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp" 2>/dev/null; then
 	printf "Oppo ofp Detected.\n"
+	MESSAGE="Oppo ofp Detected"
+	live_telegram_update
 	foundofp=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ofp")
 	7z e -y -- "${FILEPATH}" "${foundofp}" */"${foundofp}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	mv "$(echo "${foundofp}" | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
 	sleep 1s
 	printf "Reloading the extracted OFP\n"
+	MESSAGE="Reloading the extracted OFP"
+	live_telegram_update
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/${foundofp}" 2>/dev/null) || exit 1
 	exit
 fi
 if [[ "${EXTENSION}" == "ofp" ]]; then
 	printf "Oppo ofp Detected.\n"
+	MESSAGE="Oppo ofp Detected"
+	live_telegram_update
 	# Either Move Downloaded/Re-Loaded File Or Copy Local File
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ofp & extracing...\n"
+	MESSAGE="Decrypting ofp & extracing"
+	live_telegram_update
 	python3 "$OFP_QC_DECRYPT" "${TMPDIR}"/"${FILE}" out
 	if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
 		python3 "$OFP_MTK_DECRYPT" "${TMPDIR}"/"${FILE}" out
 		if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
-			printf "ofp decryption error.\n" && exit 1
+			printf "ofp decryption error.\n"
+			MESSAGE="ofp decryption error"
+			live_telegram_update
+			exit 1
 		fi
 	fi
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
@@ -303,6 +361,8 @@ if [[ "${EXTENSION}" == "ofp" ]]; then
 	fi
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Contents.\n"
+	MESSAGE="Re-Loading The Decrypted Contents"
+	live_telegram_update
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/" ) || exit 1
 	exit
@@ -310,6 +370,8 @@ fi
 # Xiaomi .tgz Check
 if [[ "${FILE##*.}" == "tgz" || "${FILE#*.}" == "tar.gz" ]]; then
 	printf "Xiaomi gzipped tar archive found.\n"
+	MESSAGE="Xiaomi gzipped tar archive found"
+	live_telegram_update
 	if [[ -f "${INPUTDIR}"/"${FILE}" ]]; then
 		tar xzvf "${INPUTDIR}"/"${FILE}" -C "${INPUTDIR}"/ --transform='s/.*\///'
 		rm -rf -- "${INPUTDIR:?}"/"${FILE}"
@@ -319,6 +381,8 @@ if [[ "${FILE##*.}" == "tgz" || "${FILE#*.}" == "tar.gz" ]]; then
 	find "${INPUTDIR}"/ -type d -empty -delete     # Delete Empth Folder Leftover
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Extracted Contents.\n"
+	MESSAGE="Re-Loading The Extracted Contents"
+	live_telegram_update
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/" ) || exit 1
 	exit
@@ -326,11 +390,15 @@ fi
 # LG KDZ Check
 if echo "${FILEPATH}" | grep -q ".*.kdz" || [[ "${EXTENSION}" == "kdz" ]]; then
 	printf "LG KDZ Detected.\n"
+	MESSAGE="LG KDZ Detected"
+	live_telegram_update
 	# Either Move Downloaded/Re-Loaded File Or Copy Local File
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/ 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/
 	python3 "${KDZ_EXTRACT}" -f "${FILE}" -x -o "./" 2>/dev/null
 	DZFILE=$(ls -- *.dz)
 	printf "Extracting All Partitions As Individual Images.\n"
+	MESSAGE="Extracting All Partitions As Individual Images"
+	live_telegram_update
 	python3 "${DZ_EXTRACT}" -f "${DZFILE}" -s -o "./" 2>/dev/null
 	rm -f "${TMPDIR}"/"${FILE}" "${TMPDIR}"/"${DZFILE}" 2>/dev/null
 	# dzpartitions="gpt_main persist misc metadata vendor system system_other product userdata gpt_backup tz boot dtbo vbmeta cust oem odm factory modem NON-HLOS"
@@ -341,9 +409,13 @@ fi
 # HTC RUU Check
 if echo "${FILEPATH}" | grep -i "^ruu_" | grep -q -i "exe$" || [[ "${EXTENSION}" == "exe" ]]; then
 	printf "HTC RUU Detected.\n"
+	MESSAGE="HTC RUU Detected"
+	live_telegram_update
 	# Either Move Downloaded/Re-Loaded File Or Copy Local File
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/ || cp -a "${FILEPATH}" "${TMPDIR}"/
 	printf "Etracting System And Firmware Partitions...\n"
+	MESSAGE="Etracting System And Firmware Partitions"
+	live_telegram_update
 	"${RUUDECRYPT}" -s "${FILE}" 2>/dev/null
 	"${RUUDECRYPT}" -f "${FILE}" 2>/dev/null
 	find "${TMPDIR}"/OUT* -name "*.img" -exec mv {} "${TMPDIR}"/ \;
@@ -368,6 +440,8 @@ fi
 # Extract/Put Image/Extra Files In TMPDIR
 if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.new.dat*" -print | wc -l) -ge 1 ]]; then
 	printf "A-only DAT-Formatted OTA detected.\n"
+	MESSAGE="A-only DAT-Formatted OTA detected"
+	live_telegram_update
 	for partition in ${PARTITIONS}; do
 		if [[ -f "${FILEPATH}" ]]; then
 			7z e -y "${FILEPATH}" "${partition}".new.dat* "${partition}".transfer.list "${partition}".img 2>/dev/null >> "${TMPDIR}"/zip.log
@@ -386,6 +460,8 @@ if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "$
 		# Fallback, Join Split Normal dat Files
 		if [[ -f "${partition}".new.dat.1 ]]; then
 			printf "Joining Split dat Files...\n"
+			MESSAGE="Joining Split dat Files"
+			live_telegram_update
 			cat "${partition}".new.dat.{0..999} 2>/dev/null >> "${partition}".new.dat
 			rm -rf "${partition}".new.dat.{0..999} 2>/dev/null
 		fi
@@ -394,21 +470,29 @@ if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "$
 			line=$(echo "${i}" | cut -d'.' -f1)
 			if echo "${i}" | grep -q ".*.dat\.xz"; then
 				printf "Converting xz %s dat To Normal\n" "${partition}"
+				MESSAGE="Converting xz "${partition}" dat To Normal"
+				live_telegram_update
 				7z e -y "${i}" 2>/dev/null >> "${TMPDIR}"/zip.log
 				rm -rf "${i}"
 			fi
 			if echo "${i}" | grep -q ".*.dat\.br"; then
 				printf "Converting brotli %s dat To Normal\n" "${partition}"
+				MESSAGE="Converting brotli "${partition}" dat To Normal"
+				live_telegram_update
 				brotli -d "${i}"
 				rm -rf "${i}"
 			fi
 			printf "Converting To %s Image...\n" "${partition}"
+			MESSAGE="Converting To "${partition}" Image..."
+			live_telegram_update
 			python3 "${SDAT2IMG}" "${line}".transfer.list "${line}".new.dat "${TMPDIR}"/"${line}".img > "${TMPDIR}"/extract.log
 			rm -rf "${line}".transfer.list "${line}".new.dat
 		done
 	done
 elif 7z l -ba "${FILEPATH}" | grep -q ".*.nb0" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.nb0*" | wc -l) -ge 1 ]]; then
 	printf "nb0-Formatted Firmware Detected.\n"
+	MESSAGE="nb0-Formatted Firmware Detected"
+	live_telegram_update
 	if [[ -f "${FILEPATH}" ]]; then
 		to_extract=$(7z l -ba "${FILEPATH}" | grep ".*.nb0" | gawk '{print $NF}')
 		7z e -y -- "${FILEPATH}" "${to_extract}" 2>/dev/null >> "${TMPDIR}"/zip.log
@@ -418,6 +502,8 @@ elif 7z l -ba "${FILEPATH}" | grep -q ".*.nb0" 2>/dev/null || [[ $(find "${TMPDI
 	"${NB0_EXTRACT}" "${to_extract}" "${TMPDIR}"
 elif 7z l -ba "${FILEPATH}" | grep system | grep chunk | grep -q -v ".*\.so$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*system*chunk*" | wc -l) -ge 1 ]]; then
 	printf "Chunk Detected.\n"
+	MESSAGE="Chunk Detected"
+	live_telegram_update
 	for partition in ${PARTITIONS}; do
 		if [[ -f "${FILEPATH}" ]]; then
 			foundpartitions=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}".img)
@@ -439,6 +525,8 @@ elif 7z l -ba "${FILEPATH}" | grep system | grep chunk | grep -q -v ".*\.so$" 2>
 	done
 elif 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q "system_new.img\|^system.img\|\/system.img\|\/system_image.emmc.img\|^system_image.emmc.img" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system*.img" | wc -l) -ge 1 ]]; then
 	printf "Image File detected.\n"
+	MESSAGE="Image File detected"
+	live_telegram_update
 	if [[ -f "${FILEPATH}" ]]; then
 		7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	fi
@@ -454,6 +542,8 @@ elif 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q "system_new.img\|^sys
 	find "${TMPDIR}" -maxdepth 3 -type f -name "*.img" -exec mv {} . \; 2>/dev/null
 elif 7z l -ba "${FILEPATH}" | grep -q "system.sin\|.*system_.*\.sin" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system*.sin" | wc -l) -ge 1 ]]; then
 	printf "sin Image Detected.\n"
+	MESSAGE="sin Image Detected"
+	live_telegram_update
 	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	# Remove Unnecessary Filename Part
 	to_remove=$(find . -type f | grep ".*boot_.*\.sin" | gawk '{print $NF}' | sed -e 's/boot_\(.*\).sin/\1/')
@@ -465,6 +555,8 @@ elif 7z l -ba "${FILEPATH}" | grep -q "system.sin\|.*system_.*\.sin" 2>/dev/null
 	find "${TMPDIR}" -maxdepth 1 -type f -name "*.ext4" | while read -r i; do mv "${i}" "${i/.ext4/.img}" 2>/dev/null; done	# proper names
 elif 7z l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.pac" | wc -l) -ge 1 ]]; then
 	printf "pac Detected.\n"
+	MESSAGE="pac Detected"
+	live_telegram_update
 	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	for f in "${TMPDIR}"/*; do detox -r "${f}"; done
 	pac_list=$(find . -type f -name "*.pac" | cut -d'/' -f'2-' | sort)
@@ -473,11 +565,15 @@ elif 7z l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" 
 	done
 elif 7z l -ba "${FILEPATH}" | grep -q "system.bin" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.bin" | wc -l) -ge 1 ]]; then
 	printf "bin Images Detected\n"
+	MESSAGE="bin Images Detected"
+	live_telegram_update
 	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	find "${TMPDIR}" -mindepth 2 -type f -name "*.bin" -exec mv {} . \;	# move .img in sub-dir to ${TMPDIR}
 	find "${TMPDIR}" -maxdepth 1 -type f -name "*.bin" | while read -r i; do mv "${i}" "${i/\.bin/.img}" 2>/dev/null; done	# proper names
 elif 7z l -ba "${FILEPATH}" | grep -q "system-p" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system-p*" | wc -l) -ge 1 ]]; then
 	printf "P-Suffix Images Detected\n"
+	MESSAGE="P-Suffix Images Detected"
+	live_telegram_update
 	for partition in ${PARTITIONS}; do
 		if [[ -f "${FILEPATH}" ]]; then
 			foundpartitions=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}-p")
@@ -489,6 +585,8 @@ elif 7z l -ba "${FILEPATH}" | grep -q "system-p" 2>/dev/null || [[ $(find "${TMP
 	done
 elif 7z l -ba "${FILEPATH}" | grep -q "system-sign.img" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system-sign.img" | wc -l) -ge 1 ]]; then
 	printf "Signed Images Detected\n"
+	MESSAGE="Signed Images Detected"
+	live_telegram_update
 	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	for f in "${TMPDIR}"/*; do detox -r "${f}"; done
 	for partition in ${PARTITIONS}; do
@@ -518,6 +616,8 @@ elif 7z l -ba "${FILEPATH}" | grep -q "system-sign.img" 2>/dev/null || [[ $(find
 	done
 elif 7z l -ba "${FILEPATH}" | grep -q -oP "(super.img|super.[0-9].+.img)" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "super.*img" | wc -l) -ge 1 ]]; then
 	printf "Super Image Detected\n"
+	MESSAGE="Super Image Detected"
+	live_telegram_update
 	#mv -f "${FILEPATH}" "${TMPDIR}"/
 	if [[ -f "${FILEPATH}" ]]; then
 		foundsupers=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "super.*img")
@@ -526,26 +626,36 @@ elif 7z l -ba "${FILEPATH}" | grep -q -oP "(super.img|super.[0-9].+.img)" 2>/dev
 	splitsupers=$(ls | grep -oP "super.[0-9].+.img")
 	if [[ ! -z "${splitsupers}" ]]; then
 		printf "Creating super.img.raw ...\n"
+		MESSAGE="Creating super.img.raw"
+		live_telegram_update
 		"${SIMG2IMG}" ${splitsupers} super.img.raw 2>/dev/null
 		rm -rf -- ${splitsupers}
 	fi
 	superchunk=$(find . -maxdepth 1 -type f -name "*super*chunk*" | cut -d'/' -f'2-' | sort)
 	if echo "${superchunk}" | grep -q "sparsechunk"; then
 		printf "Creating super.img.raw ...\n"
+		MESSAGE="Creating super.img.raw"
+		live_telegram_update
 		"${SIMG2IMG}" ${superchunk} super.img.raw 2>/dev/null
 		rm -rf -- *super*chunk*
 	fi
 	if [[ -f super.img ]]; then
 		printf "Creating super.img.raw ...\n"
+		MESSAGE="Creating super.img.raw"
+		live_telegram_update
 		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
 		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
 	fi
 	superimage_extract || exit 1
 elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*AP_*tar.md5" | wc -l) -ge 1 ]]; then
 	printf "AP tarmd5 Detected\n"
+	MESSAGE="AP tarmd5 Detected"
+	live_telegram_update
 	#mv -f "${FILEPATH}" "${TMPDIR}"/
 	[[ -f "${FILEPATH}" ]] && 7z e -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	printf "Extracting Images...\n"
+	MESSAGE="Extracting Images"
+	live_telegram_update
 	for i in ./*.tar.md5; do
 		tar -xf "${i}" || exit 1
 		rm -fv "${i}" || exit 1
@@ -558,21 +668,29 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>
 	done
 	if [[ -f super.img ]]; then
 		printf "Creating super.img.raw ...\n"
+		MESSAGE="Creating super.img.raw"
+		live_telegram_update
 		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
 		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
 	fi
 	superimage_extract || exit 1
 	if [[ ! -f system.img ]]; then
 		printf "Extract failed\n"
+		MESSAGE="Extract failed"
+		live_telegram_update
 		rm -rf "${TMPDIR}" && exit 1
 	fi
 elif 7z l -ba "${FILEPATH}" | grep -q payload.bin 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "payload.bin" | wc -l) -ge 1 ]]; then
 	printf "AB OTA Payload Detected\n"
+	MESSAGE="AB OTA Payload Detected"
+	live_telegram_update
 	[[ -f "${FILEPATH}" ]] && 7z e -y "${FILEPATH}" payload.bin 2>/dev/null >> "${TMPDIR}"/zip.log
 	python3 "${PAYLOAD_EXTRACTOR}" payload.bin "${TMPDIR}"
 	rm -f payload.bin
 elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | wc -l) -ge 1 ]]; then
 	printf "Rar/Zip/7Zip/Tar Archived Firmware Detected\n"
+	MESSAGE="Rar/Zip/7Zip/Tar Archived Firmware Detected"
+	live_telegram_update
 	if [[ -f "${FILEPATH}" ]]; then
 		mkdir -p "${TMPDIR}"/"${UNZIP_DIR}" 2>/dev/null
 		7z e -y "${FILEPATH}" -o"${TMPDIR}"/"${UNZIP_DIR}"  >> "${TMPDIR}"/zip.log
@@ -592,6 +710,8 @@ elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" 2>/dev/null 
 	exit 0
 elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "UPDATE.APP") ]]; then
 	printf "Huawei UPDATE.APP Detected\n"
+	MESSAGE="Huawei UPDATE.APP Detected"
+	live_telegram_update
 	[[ -f "${FILEPATH}" ]] && 7z x "${FILEPATH}" UPDATE.APP 2>/dev/null >> "${TMPDIR}"/zip.log
 	find "${TMPDIR}" -type f -name "UPDATE.APP" -exec mv {} . \;
 	python3 "${SPLITUAPP}" -f "UPDATE.APP" -l super || (
@@ -601,6 +721,8 @@ elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${T
 	find output/ -type f -name "*.img" -exec mv {} . \;	# Partitions Are Extracted In "output" Folder
 	if [[ -f super.img ]]; then
 		printf "Creating super.img.raw ...\n"
+		MESSAGE="Creating super.img.raw"
+		live_telegram_update
 		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
 		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
 	fi
@@ -635,8 +757,12 @@ for partition in ${PARTITIONS}; do
 		if echo "${MAGIC}" | grep -q "MOTO"; then
 			[[ "$offset" == 128055 ]] && offset=131072
 			printf "MOTO header detected on %s in %s\n" "${partition}" "${offset}"
+			MESSAGE="MOTO header detected on "${partition}" in "${offset}""
+			live_telegram_update
 		elif echo "${MAGIC}" | grep -q "ASUS"; then
 			printf "ASUS header detected on %s in %s\n" "${partition}" "${offset}"
+			MESSAGE="ASUS header detected on "${partition}" in "${offset}""
+			live_telegram_update
 		else
 			offset=0
 		fi
@@ -658,7 +784,9 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	python3 "${DTB_EXTRACTOR}" "${OUTDIR}"/boot.img -o "${OUTDIR}"/bootimg >/dev/null
 	find "${OUTDIR}"/bootimg -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o bootdts/"${i/\.dtb/.dts}" bootimg/"${i}"; done 2>/dev/null
 	bash "${UNPACKBOOT}" "${OUTDIR}"/boot.img "${OUTDIR}"/boot 2>/dev/null
-	printf "Boot extracted\n"
+	printf "Boot Extracted\n"
+	MESSAGE="Boot Extracted"
+	live_telegram_update
 	# extract-ikconfig
 	mkdir -p "${OUTDIR}"/bootRE
 	bash "${EXTRACT_IKCONFIG}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/ikconfig 2> /dev/null
@@ -667,12 +795,18 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	if [[ ! -f "${OUTDIR}"/vendor_boot.img ]]; then
 		python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/boot_kallsyms.txt >/dev/null 2>&1
 		printf "boot_kallsyms.txt generated\n"
+		MESSAGE="boot_kallsyms.txt generated"
+		live_telegram_update
 	else
 		python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot/kernel > "${OUTDIR}"/bootRE/kernel_kallsyms.txt >/dev/null 2>&1
 		printf "kernel_kallsyms.txt generated\n"
+		MESSAGE="kernel_kallsyms.txt generated"
+		live_telegram_update
 	fi
 	python3 "${VMLINUX2ELF}" "${OUTDIR}"/boot.img "${OUTDIR}"/bootRE/boot.elf >/dev/null 2>&1
 	printf "boot.elf generated\n"
+	MESSAGE="boot.elf generated"
+	live_telegram_update
 fi
 
 # Extract vendor_boot.img
@@ -683,17 +817,23 @@ if [[ -f "${OUTDIR}"/vendor_boot.img ]]; then
 	find "${OUTDIR}"/vendor_bootimg -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o vendor_bootdts/"${i/\.dtb/.dts}" vendor_bootimg/"${i}"; done 2>/dev/null
 	bash "${UNPACKBOOT}" "${OUTDIR}"/vendor_boot.img "${OUTDIR}"/vendor_boot 2>/dev/null
 	printf "Vendor Boot extracted\n"
+	MESSAGE="Vendor Boot extracted"
+	live_telegram_update
 	# extract-ikconfig
 	mkdir -p "${OUTDIR}"/vendor_bootRE
 	# vmlinux-to-elf
 	python3 "${VMLINUX2ELF}" "${OUTDIR}"/vendor_boot.img "${OUTDIR}"/vendor_bootRE/vendor_boot.elf >/dev/null 2>&1
 	printf "vendor_boot.elf generated\n"
+	MESSAGE="vendor_boot.elf generated"
+	live_telegram_update
 fi
 
 # Extract recovery.img
 if [[ -f "${OUTDIR}"/recovery.img ]]; then
 	bash "${UNPACKBOOT}" "${OUTDIR}"/recovery.img "${OUTDIR}"/recovery 2>/dev/null
 	printf "Recovery extracted\n"
+	MESSAGE="Recovery extracted"
+	live_telegram_update
 fi
 
 # Extract dtbo
@@ -702,6 +842,8 @@ if [[ -f "${OUTDIR}"/dtbo.img ]]; then
 	python3 "${DTB_EXTRACTOR}" "${OUTDIR}"/dtbo.img -o "${OUTDIR}"/dtbo >/dev/null
 	find "${OUTDIR}"/dtbo -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o dtbodts/"${i/\.dtb/.dts}" dtbo/"${i}"; done 2>/dev/null
 	printf "dtbo extracted\n"
+	MESSAGE="dtbo extracted"
+	live_telegram_update
 fi
 
 # Extract Files From All Usable PARTITIONS
@@ -710,6 +852,8 @@ for p in ${PARTITIONS}; do
 		if [[ -e "${p}.img" ]]; then
 			mkdir "${p}" 2>/dev/null || rm -rf "${p:?}"/*
 			printf "Extracting %s partition\n" "${p}"
+			MESSAGE="Extracting "${p}" partition"
+			live_telegram_update
 			7z x "${p}".img -y -o"${p}"/ >/dev/null 2>&1
 			rm "${p}".img >/dev/null 2>&1
 		fi
@@ -744,7 +888,7 @@ fi
 sort -u < "${TMPDIR}"/board-info.txt > "${OUTDIR}"/board-info.txt
 
 # set variables
-[[ $(find "$(pwd)"/system "$(pwd)"/system/system "$(pwd)"/vendor "$(pwd)"/*product -maxdepth 1 -type f -name "build*.prop" 2>/dev/null | sort -u | gawk '{print $NF}') ]] || { printf "No system/vendor/product build*.prop found, pushing cancelled.\n" && exit 1; }
+[[ $(find "$(pwd)"/system "$(pwd)"/system/system "$(pwd)"/vendor "$(pwd)"/*product -maxdepth 1 -type f -name "build*.prop" 2>/dev/null | sort -u | gawk '{print $NF}') ]] || { printf "No system/vendor/product build*.prop found, pushing cancelled.\n" && MESSAGE="No system/vendor/product build*.prop found, pushing cancelled" && live_telegram_update && exit 1; }
 
 flavor=$(grep -m1 -oP "(?<=^ro.build.flavor=).*" -hs {system,system/system,vendor}/build*.prop)
 [[ -z "${flavor}" ]] && flavor=$(grep -m1 -oP "(?<=^ro.vendor.build.flavor=).*" -hs vendor/build*.prop)
@@ -842,11 +986,14 @@ printf "## %s\n- Manufacturer: %s\n- Platform: %s\n- Codename: %s\n- Brand: %s\n
 printf "\n\n>Dumped by [Phoenix Firmware Dumper](https://github.com/DroidDumps/phoenix_firmware_dumper)\n" >> "${OUTDIR}"/README.md
 cat "${OUTDIR}"/README.md
 
+
 # copy file names
 chown "$(whoami)" ./* -R
 chmod -R u+rwX ./*		#ensure final permissions
 find . -type f | cut -d'/' -f'2-' | grep -v ".git/" > "${TMPDIR}"/all_filenames.txt
 printf "Calculating Data File Sizes, Please Wait...\n"
+MESSAGE="Calculating Data File Sizes, Please Wait"
+live_telegram_update
 while read -r i; do
 	du -b "${i}" >> "${TMPDIR}"/sized_files.txt
 done < "${TMPDIR}"/all_filenames.txt
@@ -883,6 +1030,8 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	rm -rf "${TMPDIR}" 2>/dev/null
 	printf "\nFinal Repository Should Look Like...\n" && ls -lAog
 	printf "\n\nStarting Git Init...\n"
+	MESSAGE="Firmware Dumped Successfully, Pushing To "$GITLAB_INSTANCE""
+	live_telegram_update
 	git init		# Insure Your GitLab Authorization Before Running This Script
 	git config --global http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
 	git checkout -b "${branch}"
@@ -932,8 +1081,12 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		TEXT=$(< "${OUTDIR}"/tg.html)
 		rm -rf "${OUTDIR}"/tg.html
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
+		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text=${TEXT}&chat_id=${TELEGRAM_CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n" # Send Edited Message To The Telegram Group In Which /dump Command Is Initiated
+
 	fi
 else
 	printf "Dumping done locally.\n"
+	MESSAGE="Unable To Push To "$GITLAB_INSTANCE", Dumping done locally"
+	live_telegram_update
 	exit
 fi
