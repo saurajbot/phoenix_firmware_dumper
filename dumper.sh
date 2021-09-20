@@ -109,10 +109,10 @@ if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Typ
 curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
 
 live_telegram_update() {
-	if [ "$TELEGRAM_LIVE" == true ] ; then curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$CHAT_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText ; fi
+	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$CHAT_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
 }
 live_telegram_update2() {
-	if [ "$TELEGRAM_LIVE" == true ] ; then curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$M_ID, \"chat_id\": \"$C_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText ; fi
+	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$M_ID, \"chat_id\": \"$C_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
 }
 
 ## See README.md File For Program Credits
