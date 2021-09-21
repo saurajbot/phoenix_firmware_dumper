@@ -17,7 +17,7 @@ function __bannerTop() {
     ╔══════════════════════════════════════════════════════════════════════════════╗
     ║    ╔═╗╦ ╦╔═╗╔═╗╔╗╔╦═╗ ╦  ╔═╗┬┬─┐┌┬┐┬ ┬┌─┐┬─┐┌─┐  ╔╦╗┬ ┬┌┬┐┌─┐┌─┐┬─┐          ║
     ║    ╠═╝╠═╣║ ║║╣ ║║║║╔╩╦╝  ╠╣ │├┬┘││││││├─┤├┬┘├┤    ║║│ ││││├─┘├┤ ├┬┘          ║
-    ║    ╩  ╩ ╩╚═╝╚═╝╝╚╝╩╩ ╚═  ╚  ┴┴└─┴ ┴└┴┘┴ ┴┴└─└─┘  ═╩╝└─┘┴ ┴┴  └─┘┴└─  v1.1.3  ║
+    ║    ╩   ╩ ╩╚═╝╚═╝╝╚╝╩╩ ╚═  ╚  ┴┴└─┴ ┴└┴┘┴ ┴┴└─└─┘  ═╩╝└─┘┴ ┴┴  └─┘┴└─  v1.1.3  ║
     ║ ---------------------------------------------------------------------------- ║
     ║  Based Upon Dumpyara from AndroidDumps, Infused w/ their Firmware_extractor  ║
     ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -103,16 +103,16 @@ C_ID=$(< "${PROJECT_DIR}"/.tg_cid)
 #fi  #Additional Telegram Live Updates Feature
 
 #Send Dump Start Notification and fetch message id, to be used for later live editing
-if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Type: application/json' -d "{\"chat_id\": \"$CHAT_ID\", \"text\": \"Starting Dump...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/sendMessage | grep -oP "(\"message_id\":)[0-9]+" | cut -d ":" -f 2) ; fi
+if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Type: application/json' -d "{\"chat_id\": \"$CHAT_ID\", \"text\": \"sᴛᴀʀᴛɪɴɢ ʙᴏᴛ\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/sendMessage | grep -oP "(\"message_id\":)[0-9]+" | cut -d ":" -f 2) ; fi
 
 # Always Use update_metadata_pb2.py from Android's update_engine Git Repository
 curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
 
 live_telegram_update() {
-	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$CHAT_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
+	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$CHAT_ID\", \"text\": \"sᴛᴀᴛᴜs : \n\n⦿ $MESSAGE\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
 }
 live_telegram_update2() {
-	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$M_ID, \"chat_id\": \"$C_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
+	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$M_ID, \"chat_id\": \"$C_ID\", \"text\": \"sᴛᴀᴛᴜs : \n\n⦿ $MESSAGE\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
 }
 
 ## See README.md File For Program Credits
@@ -1147,13 +1147,14 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 			CHAT_ID="@phoenix_droid_dumps"
 		fi
 		printf "Sending telegram notification...\n"
-		printf "<b>Brand: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html
+		printf "<b>ʙʀᴀɴᴅ: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html
 		{
-			printf "\n<b>Device: %s</b>" "${codename}"
-			printf "\n<b>Version:</b> %s" "${release}"
-			printf "\n<b>Fingerprint:</b> %s" "${fingerprint}"
-			printf "\n<a href=\"https://%s/%s/%s/-/tree/%s/\">GitLab Tree</a>" "${GITLAB_INSTANCE}" "${GIT_ORG}" "${repo}" "${branch}"
-			
+			printf "\n<b>ᴅᴇᴠɪᴄᴇ: %s</b>" "${codename}"
+			printf "\n<b>ᴠᴇʀsɪᴏɴ:</b> %s" "${release}"
+			printf "\n<b>ғɪɴɢᴇʀᴘʀɪɴᴛ:</b> %s" "${fingerprint}"
+			printf "\n<a href=\"https://%s/%s/%s/-/tree/%s/\">ɢɪᴛʟᴀʙ ᴛʀᴇᴇ</a>" "${GITLAB_INSTANCE}" "${GIT_ORG}" "${repo}" "${branch}"
+			printf "\n<b>ғᴏʟʟᴏᴡ%s @saurajdumps</b>"
+
 		} >> "${OUTDIR}"/tg.html
 		TEXT=$(< "${OUTDIR}"/tg.html)
 		rm -rf "${OUTDIR}"/tg.html
