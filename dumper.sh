@@ -1159,7 +1159,7 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		} >> "${OUTDIR}"/tg.html
 		TEXT=$(< "${OUTDIR}"/tg.html)
 		rm -rf "${OUTDIR}"/tg.html
-		#curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
+		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${M_ID}&text=${TEXT}&chat_id=${C_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n" # Send Edited Message To The Telegram Group In Which /dump Command Is Initiated
 
 	fi
