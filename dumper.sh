@@ -1144,13 +1144,13 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token)
 		if [[ -s "${PROJECT_DIR}"/.tg_chat ]]; then		# TG Channel ID
 			CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
-			mkdir -p "$HOME"/telegram
-			touch "$HOME"/telegram/chat_id
-			touch "$HOME"/telegram/msg_id
-			touch "$HOME"/telegram/prj_dir
-			printf "$CHAT_ID" > "$HOME"/telegram/chat_id
-			printf "$MESSAGE_ID" > "$HOME"/telegram/msg_id
-			printf "$PROJECT_DIR" > "$HOME"/telegram/prj_dir
+			mkdir -p /home/runner/telegram
+			touch /home/runner/telegram/chat_id
+			touch /home/runner/telegram/msg_id
+			touch /home/runner/telegram/prj_dir
+			printf "$CHAT_ID" > /home/runner/telegram/chat_id
+			printf "$MESSAGE_ID" > /home/runner/telegram/msg_id
+			printf "$PROJECT_DIR" > /home/runner/telegram/prj_dir
 		else
 			CHAT_ID="@phoenix_droid_dumps"
 		fi
@@ -1164,10 +1164,14 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 
 		} >> "${OUTDIR}"/tg.html
 		TEXT=$(< "${OUTDIR}"/tg.html)
-		mv "${OUTDIR}"/tg.html "$HOME"/telegram/tg.html
+		mv "${OUTDIR}"/tg.html /home/runner/telegram/tg.html
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${M_ID}&text=${TEXT}&chat_id=${C_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n" # Send Edited Message To The Telegram Group In Which /dump Command Is Initiated
-        mv "${OUTDIR}" "$HOME"/dmup
+        mv "${OUTDIR}" /home/runner/dmup
+        ls /home/runner
+        ls /home/runner/dump
+        cat /home/runner/telegram/chat_id
+        cat /home/runner/telegram/msg_id
 	fi
 else
 	printf "Dumping done locally.\n"
