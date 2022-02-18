@@ -1144,6 +1144,10 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token)
 		if [[ -s "${PROJECT_DIR}"/.tg_chat ]]; then		# TG Channel ID
 			CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
+			mkdir -p "$HOME"/telegram
+			touch "$HOME"/telegram/chat_id
+			touch "$HOME"/telegram/msg_id
+			touch "$HOME"/telegram/prj_dir
 			printf "$CHAT_ID" > "$HOME"/telegram/chat_id
 			printf "$MESSAGE_ID" > "$HOME"/telegram/msg_id
 			printf "$PROJECT_DIR" > "$HOME"/telegram/prj_dir
