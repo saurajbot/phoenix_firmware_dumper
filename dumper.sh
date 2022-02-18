@@ -1144,6 +1144,9 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token)
 		if [[ -s "${PROJECT_DIR}"/.tg_chat ]]; then		# TG Channel ID
 			CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
+			printf "$CHAT_ID" > "$HOME"/telegram/chat_id
+			printf "$MESSAGE_ID" > "$HOME"/telegram/msg_id
+			printf "$PROJECT_DIR" > "$HOME"/telegram/prj_dir
 		else
 			CHAT_ID="@phoenix_droid_dumps"
 		fi
@@ -1154,14 +1157,13 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 			printf "\n<b>ᴠᴇʀsɪᴏɴ:</b> %s" "${release}"
 			printf "\n<b>ғɪɴɢᴇʀᴘʀɪɴᴛ:</b> %s" "${fingerprint}"
 			printf "\n<a href=\"https://%s/%s/%s/-/tree/%s/\">ɢɪᴛʟᴀʙ ᴛʀᴇᴇ</a>" "${GITLAB_INSTANCE}" "${GIT_ORG}" "${repo}" "${branch}"
-			printf "\n<b>ғᴏʟʟᴏᴡ%s @saurajdumps</b>"
 
 		} >> "${OUTDIR}"/tg.html
 		TEXT=$(< "${OUTDIR}"/tg.html)
-		rm -rf "${OUTDIR}"/tg.html
+		mv "${OUTDIR}"/tg.html "$HOME"/telegram/tg.html
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${M_ID}&text=${TEXT}&chat_id=${C_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n" # Send Edited Message To The Telegram Group In Which /dump Command Is Initiated
-
+        mv "${OUTDIR}" "$HOME"/dmup
 	fi
 else
 	printf "Dumping done locally.\n"
