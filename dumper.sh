@@ -1167,11 +1167,11 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		mv "${OUTDIR}"/tg.html /home/runner/telegram/tg.html
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${M_ID}&text=${TEXT}&chat_id=${C_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n" # Send Edited Message To The Telegram Group In Which /dump Command Is Initiated
-        mv "${OUTDIR}" /home/runner/dmup
-        ls /home/runner
-        ls /home/runner/dump
-        cat /home/runner/telegram/chat_id
-        cat /home/runner/telegram/msg_id
+                mv "${OUTDIR}" /home/runner/dump
+                ls /home/runner
+                ls /home/runner/dump
+                cat /home/runner/telegram/chat_id
+                cat /home/runner/telegram/msg_id
 	fi
 else
 	printf "Dumping done locally.\n"
