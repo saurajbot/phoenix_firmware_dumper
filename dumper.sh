@@ -1148,9 +1148,9 @@ if [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 			touch /home/runner/telegram/chat_id
 			touch /home/runner/telegram/msg_id
 			touch /home/runner/telegram/prj_dir
-			printf '%s' "$CHAT_ID" > /home/runner/telegram/chat_id
-			printf '%s' "$MESSAGE_ID" > /home/runner/telegram/msg_id
-			printf '%s' "$PROJECT_DIR" > /home/runner/telegram/prj_dir
+			echo -n "$CHAT_ID" > /home/runner/telegram/chat_id
+			echo -n "$MESSAGE_ID" > /home/runner/telegram/msg_id
+			echo -n "$PROJECT_DIR" > /home/runner/telegram/prj_dir
 		else
 			CHAT_ID="@phoenix_droid_dumps"
 		fi
