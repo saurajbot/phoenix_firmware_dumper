@@ -89,19 +89,6 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 		git -C "${UTILSDIR}"/"${tool_slug#*/}" pull
 	fi
 done
-#if [[ -s "${PROJECT_DIR}"/.tg_token ]] && [[ -s "${PROJECT_DIR}"/.tg_chat_id ]]
-#then
-export TELEGRAM_LIVE=true 
-TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) 
-CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
-M_ID=$(< "${PROJECT_DIR}"/.tg_mid)
-C_ID=$(< "${PROJECT_DIR}"/.tg_cid)
-#export TG_TOKEN=$TG_TOKEN 
-#export CHAT_ID=$CHAT_ID
-#else
-    #export TELEGRAM_LIVE=false
-#fi  #Additional Telegram Live Updates Feature
-
 #Send Dump Start Notification and fetch message id, to be used for later live editing
 if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Type: application/json' -d "{\"chat_id\": \"$CHAT_ID\", \"text\": \"sᴛᴀʀᴛɪɴɢ ʙᴏᴛ\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/sendMessage | grep -oP "(\"message_id\":)[0-9]+" | cut -d ":" -f 2) ; fi
 
@@ -115,6 +102,11 @@ live_telegram_update2() {
 	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text="$MSG"&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 }
 msg_dump(){
+    export TELEGRAM_LIVE=true 
+    TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) 
+    CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
+    M_ID=$(< "${PROJECT_DIR}"/.tg_mid)
+    C_ID=$(< "${PROJECT_DIR}"/.tg_cid)
     printf "${@}"
     MSG=$(printf "${@}")
     live_telegram_update
