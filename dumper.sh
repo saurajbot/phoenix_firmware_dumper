@@ -981,6 +981,12 @@ otaver=$(grep -m1 -oP "(?<=^ro.build.version.ota=).*" -hs {vendor/euclid/product
 [[ ! -z "${otaver}" && -z "${fingerprint}" ]] && branch=$(echo "${otaver}" | tr ' ' '-')
 [[ -z "${otaver}" ]] && otaver=$(grep -m1 -oP "(?<=^ro.build.fota.version=).*" -hs {system,system/system}/build*.prop | head -1)
 [[ -z "${branch}" ]] && branch=$(echo "${description}" | tr ' ' '-')
+if [[ ${#branch} -lt 1 ]]; then 
+    RANDOM=$(date +%s%N | cut -b10-19)
+    branch=$(echo $RANDOM)
+else
+    echo $branch
+fi
 RANDOM=$(date +%s%N | cut -b10-19)
 repo=$(echo "${brand}"_"${codename}"_dump_"${RANDOM}" | tr '[:upper:]' '[:lower:]')
 platform=$(echo "${platform}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
