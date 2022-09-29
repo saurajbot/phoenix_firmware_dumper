@@ -109,14 +109,16 @@ if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Typ
 curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
 
 live_telegram_update() {
-	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$CHAT_ID\", \"text\": \"sᴛᴀᴛᴜs : \n\n◉ $MESSAGE\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
+	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${M_ID}&text="$MSG"&chat_id=${C_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 }
 live_telegram_update2() {
-	curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$M_ID, \"chat_id\": \"$C_ID\", \"text\": \"sᴛᴀᴛᴜs : \n\n◉ $MESSAGE\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/editMessageText
+	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text="$MSG"&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 }
 msg_dump(){
-    $MESSAGE=$1
-    printf $MESSAGE && live_telegram_update && live_telegram_update2
+    printf "${@}"
+    MSG=$(printf "${@}")
+    live_telegram_update
+    live_telegram_update2
 }
 
 ## See README.md File For Program Credits
