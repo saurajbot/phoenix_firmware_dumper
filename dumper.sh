@@ -89,6 +89,11 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 		git -C "${UTILSDIR}"/"${tool_slug#*/}" pull
 	fi
 done
+    export TELEGRAM_LIVE=true 
+    TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) 
+    CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
+    M_ID=$(< "${PROJECT_DIR}"/.tg_mid)
+    C_ID=$(< "${PROJECT_DIR}"/.tg_cid)
 #Send Dump Start Notification and fetch message id, to be used for later live editing
 if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Type: application/json' -d "{\"chat_id\": \"$CHAT_ID\", \"text\": \"sᴛᴀʀᴛɪɴɢ ʙᴏᴛ\", \"disable_notification\": true}" https://api.telegram.org/bot$TG_TOKEN/sendMessage | grep -oP "(\"message_id\":)[0-9]+" | cut -d ":" -f 2) ; fi
 
@@ -96,13 +101,12 @@ if [ "$TELEGRAM_LIVE" == true ] ; then MESSAGE_ID=$(curl -X POST -H 'Content-Typ
 curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
 
 live_telegram_update() {
-	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${M_ID}&text="$MSG"&chat_id=${C_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
+	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" -d "chat_id=$C_ID" -d "message_id=$M_ID" -d "text=$MSG" -d "parse_mode=MarkdownV2" || printf "Telegram Notification Sending =Error.\n"
 }
 live_telegram_update2() {
-	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" --data "message_id=${MESSAGE_ID}&text="$MSG"&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
+	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" -d "chat_id=$CHAT_ID" -d "message_id=$MESSAGE_ID" -d "text=$MSG" -d "parse_mode=MarkdownV2" || printf "Telegram Notification Sending =Error.\n"
 }
 msg_dump(){
-    export TELEGRAM_LIVE=true 
     TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) 
     CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
     M_ID=$(< "${PROJECT_DIR}"/.tg_mid)
