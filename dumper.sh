@@ -104,7 +104,7 @@ live_telegram_update() {
 	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" -d "chat_id=$C_ID" -d "message_id=$M_ID" -d "text=$MSG" -d "parse_mode=MarkdownV2" || printf "Telegram Notification Sending =Error.\n"
 }
 live_telegram_update2() {
-	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" -d "chat_id=$CHAT_ID" -d "message_id=$MESSAGE_ID" -d "text=$MSG" -d "parse_mode=MarkdownV2" || printf "Telegram Notification Sending =Error.\n"
+	curl -s "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" -d "chat_id=$CHAT_ID" -d "message_id=$MESSAGE_ID" -d "text=$MSG" || printf "Telegram Notification Sending =Error.\n"
 }
 msg_dump(){
     TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token) 
