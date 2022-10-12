@@ -252,8 +252,7 @@ function superimage_extract() {
     if [[ ! -s super.img.raw ]] && [ -f super.img ]; then
         mv super.img super.img.raw
     fi
-    for partition in $PARTITIONS; do
-		local cur_path=$(pwd)
+	local cur_path=$(pwd)
         ($LPUNPACK super.img.raw "$cur_path" || $LPUNPACK super.img.raw "$cur_path")
         if [ -f "$partition"_a.img ]; then
             mv "$partition"_a.img "$partition".img
@@ -262,7 +261,6 @@ function superimage_extract() {
             7z e -y "${FILEPATH}" $foundpartitions dummypartition 2>/dev/null >> $TMPDIR/zip.log
         fi
         rm *_b.img 2>/dev/null
-    done
     rm -rf super.img.raw
 }
 
