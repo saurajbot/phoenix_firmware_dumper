@@ -4,7 +4,8 @@ if [ ! $(id -u) -eq 0 ]; then
 	printf "Run This File As Root User\n"
 	exit 1
 fi
-
+#Make files executable
+chmod +x utils/lpunpack.py
 if grep -q ^ID=alpine$ /etc/os-release; then
 	if ! grep -q ".*alpine\/edge" /etc/apk/repositories; then
 		{
