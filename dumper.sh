@@ -132,7 +132,7 @@ OZIPDECRYPT="${UTILSDIR}"/oppo_ozip_decrypt/ozipdecrypt.py
 OFP_QC_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_qc_decrypt.py
 OFP_MTK_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_mtk_decrypt.py
 OPSDECRYPT="${UTILSDIR}"/oppo_decrypt/opscrypto.py
-LPUNPACK="${UTILSDIR}"/lpunpack
+LPUNPACK="${UTILSDIR}"/lpunpack.py
 SPLITUAPP="${UTILSDIR}"/splituapp.py
 PACEXTRACTOR="${UTILSDIR}"/pacextractor/python/pacExtractor.py
 NB0_EXTRACT="${UTILSDIR}"/nb0-extract
@@ -261,6 +261,7 @@ function superimage_extract() {
             foundpartitions=$(7z l -ba "${FILEPATH}" | rev | gawk '{ print $1 }' | rev | grep $partition.img)
             7z e -y "${FILEPATH}" $foundpartitions dummypartition 2>/dev/null >> $TMPDIR/zip.log
         fi
+        rm *_b.img 2>/dev/null
     done
     rm -rf super.img.raw
 }
