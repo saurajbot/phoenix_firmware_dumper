@@ -5,6 +5,7 @@ if [ ! $(id -u) -eq 0 ]; then
 	exit 1
 fi
 #Make files executable
+chmod +x utils/erofsfuse
 chmod +x utils/lpunpack.py
 if grep -q ^ID=alpine$ /etc/os-release; then
 	if ! grep -q ".*alpine\/edge" /etc/apk/repositories; then

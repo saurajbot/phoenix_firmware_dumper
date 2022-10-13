@@ -120,6 +120,7 @@ msg_dump(){
 ## See README.md File For Program Credits
 # Set Utility Program Alias
 SDAT2IMG="${UTILSDIR}"/sdat2img.py
+EROFSFUSE="${UTILSDIR}"/erofsfuse
 SIMG2IMG="${UTILSDIR}"/bin/simg2img
 PACKSPARSEIMG="${UTILSDIR}"/bin/packsparseimg
 UNSIN="${UTILSDIR}"/unsin
@@ -834,8 +835,8 @@ for p in $PARTITIONS; do
 					if [ $? -eq 0 ]; then
 						rm -fv "$p".img > /dev/null 2>&1
 					else
-						echo "Couldn't extract $p partition by fsck.erofs. Using mount loop"
-						sudo mount -o loop -t auto "$p".img "$p"
+						echo "Couldn't extract $p partition by fsck.erofs. Using erofsfuse."
+						sudo ${EROFSFUSE} "$p".img "$p"
 						mkdir "${p}_"
 						sudo cp -rf "${p}/"* "${p}_"
 						sudo umount "${p}"
